@@ -12,7 +12,8 @@ logger = logging.getLogger("meetingos-ai-worker")
 async def lifespan(app: FastAPI):
     logger.info("Initializing MeetingOS AI Worker service...")
     try:
-        # Start consumer
+        # Start RabbitMQ async consumer
+        await worker_consumer.start()
         yield
     finally:
         logger.info("Shutting down MeetingOS AI Worker service...")

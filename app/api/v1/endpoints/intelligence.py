@@ -164,7 +164,7 @@ def _build_intelligent_fallback_response(query: str, meetings: List[MeetingConte
         )
 
     # 4. General Multi-Meeting Synthesis
-    lines = [f"### Executive Overview\n"]
+    lines = [f"### Workspace Meetings Overview\n"]
     if len(meetings) == 0:
         return SynthesizeResponse(
             answer="No meeting records were available to synthesize an answer.",
@@ -172,25 +172,48 @@ def _build_intelligent_fallback_response(query: str, meetings: List[MeetingConte
             highlighted_meeting_ids=[]
         )
 
-    top_meeting = meetings[0]
-    highlighted_ids.append(top_meeting.id)
-    if top_meeting.executive_summary:
-        lines.append(f"In **\"{top_meeting.title}\"** ({top_meeting.date or 'Latest'}):\n{top_meeting.executive_summary}\n")
-    elif top_meeting.summary:
-        lines.append(f"In **\"{top_meeting.title}\"**:\n{top_meeting.summary}\n")
+    lines.append(f"Across your organization workspace, there are **{len(meetings)} meeting sessions** recorded. Below is a structured summary of each discussion:\n")
 
-    # Add relevant topics if present
-    if top_meeting.topics:
-        lines.append("### Key Discussion Topics\n")
-        for t in top_meeting.topics[:3]:
-            title = t.get("title", "")
-            summary = t.get("summary", "")
-            lines.append(f"- **{title}**: {summary}")
+    for idx, m in enumerate(meetings, 1):
+        highlighted_ids.append(m.id)
+        date_str = m.date or 'Recorded Session'
+        lines.append(f"---\n")
+        lines.append(f"#### {idx}. **\"{m.title}\"** ({date_str})")
+        
+        if m.executive_summary:
+            lines.append(f"{m.executive_summary}\n")
+        elif m.summary:
+            lines.append(f"{m.summary}\n")
+
+        # Add relevant topics if present
+        if m.topics:
+            lines.append("**Key Topics:**")
+            for t in m.topics[:3]:
+                title = t.get("title", "")
+                summary = t.get("summary", "")
+                lines.append(f"- **{title}**: {summary}")
+            lines.append("")
+
+        # Add decisions if present
+        if m.decisions:
+            lines.append("**Key Decisions:**")
+            for d in m.decisions[:2]:
+                lines.append(f"- {d.get('decision', '')}")
+            lines.append("")
+
+        # Add action items if present
+        if m.action_items:
+            lines.append("**Action Items:**")
+            for a in m.action_items[:2]:
+                desc = a.get("description", "")
+                assignee = a.get("assigneeName") or a.get("assignee_name") or "Unassigned"
+                lines.append(f"- **{desc}** (*Assigned to {assignee}*)")
+            lines.append("")
 
     return SynthesizeResponse(
         answer="\n".join(lines).strip(),
-        confidence=0.90,
-        highlighted_meeting_ids=highlighted_ids
+        confidence=0.95,
+        highlighted_meeting_ids=highlighted_ids[:8]
     )
 
 @router.post("/synthesize", response_model=SynthesizeResponse, status_code=status.HTTP_200_OK)
